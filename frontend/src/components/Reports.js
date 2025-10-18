@@ -436,7 +436,7 @@ const Reports = () => {
       setPastorGiftAmount('');
       
       // Refresh weekly data
-      fetchWeeklyData();
+      fetchWeeklyReport();
       
       alert('Pastor gift added successfully!');
     } catch (error) {

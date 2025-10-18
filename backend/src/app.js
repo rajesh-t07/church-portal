@@ -64,8 +64,26 @@ app.use('/api/donations', ensureAuthenticated, donationRoutes);
 app.use('/api/donors', ensureAuthenticated, donorRoutes);
 app.use('/api/pastor-gifts', pastorGiftRoutes);
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    service: 'church-portal-backend',
+    version: '1.0.0'
+  });
+});
+
 app.get('/', (req, res) => {
-  res.send('Atlanta Little Flock Church Portal Backend Running');
+  res.json({ 
+    message: 'Atlanta Little Flock Church Portal Backend Running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      auth: '/auth',
+      api: '/api'
+    }
+  });
 });
 
 // Error handling

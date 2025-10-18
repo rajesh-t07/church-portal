@@ -8,6 +8,7 @@
     "dev": "nodemon src/app.js"
   },
   "dependencies": {
+    "@azure/identity": "^4.0.1",
     "@azure/storage-blob": "^12.15.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
@@ -23,6 +24,8 @@
     "nodemailer": "^6.9.4",
     "pdfkit": "^0.17.2",
     "sequelize": "^6.32.1",
+    "pg": "^8.11.3",
+    "pg-hstore": "^2.3.4",
     "winston": "^3.10.0"
   },
   "devDependencies": {
