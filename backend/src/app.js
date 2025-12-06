@@ -55,7 +55,7 @@ if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 }
 
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/expenses', ensureAuthenticated, expenseRoutes);
 app.use('/api/offerings', ensureAuthenticated, offeringRoutes);
 app.use('/api/reports', ensureAuthenticated, reportRoutes);
