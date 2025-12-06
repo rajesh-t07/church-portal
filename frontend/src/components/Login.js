@@ -18,9 +18,9 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
+
     try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const response = await axios.post(endpoint, formData);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -47,7 +47,7 @@ const Login = () => {
         border: '1px solid rgba(255, 255, 255, 0.2)'
       }}>
         {/* Church Branding Header */}
-        <div style={{ 
+        <div style={{
           marginBottom: '2rem',
           padding: '1rem 0',
           borderBottom: '2px solid #f0f0f0'
@@ -72,17 +72,17 @@ const Login = () => {
               {churchBranding.logo}
             </div>
           </div>
-          <h1 style={{ 
-            margin: '0 0 0.5rem 0', 
-            color: '#2c3e50', 
+          <h1 style={{
+            margin: '0 0 0.5rem 0',
+            color: '#2c3e50',
             fontSize: '1.5rem',
             fontWeight: '600'
           }}>
             {churchBranding.name}
           </h1>
-          <p style={{ 
-            margin: '0 0 1rem 0', 
-            color: '#7f8c8d', 
+          <p style={{
+            margin: '0 0 1rem 0',
+            color: '#7f8c8d',
             fontSize: '0.875rem',
             fontStyle: 'italic'
           }}>
@@ -92,15 +92,15 @@ const Login = () => {
 
         {/* Login/Register Form */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ 
-            marginBottom: '1.5rem', 
+          <h2 style={{
+            marginBottom: '1.5rem',
             color: '#2c3e50',
             fontSize: '1.25rem',
             fontWeight: '500'
           }}>
             {isLogin ? 'Welcome Back' : 'Join Our Community'}
           </h2>
-          
+
           {error && (
             <div style={{
               ...StyledComponents.Alert,
@@ -130,7 +130,7 @@ const Login = () => {
                 />
               </div>
             )}
-            
+
             <div style={StyledComponents.FormGroup}>
               <input
                 type="email"
@@ -146,7 +146,7 @@ const Login = () => {
                 }}
               />
             </div>
-            
+
             <div style={StyledComponents.FormGroup}>
               <input
                 type="password"
@@ -162,9 +162,9 @@ const Login = () => {
                 }}
               />
             </div>
-            
-            <button 
-              type="submit" 
+
+            <button
+              type="submit"
               disabled={isLoading}
               style={{
                 ...StyledComponents.Button,
@@ -201,14 +201,14 @@ const Login = () => {
           paddingTop: '1rem',
           borderTop: '1px solid #f0f0f0'
         }}>
-          <p style={{ 
-            margin: '0 0 0.75rem 0', 
+          <p style={{
+            margin: '0 0 0.75rem 0',
             color: '#7f8c8d',
             fontSize: '0.875rem'
           }}>
             {isLogin ? "Don't have an account?" : "Already have an account?"}
           </p>
-          <button 
+          <button
             onClick={() => {
               setIsLogin(!isLogin);
               setError('');

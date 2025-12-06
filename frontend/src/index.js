@@ -4,7 +4,7 @@ import './index.css';
 import App from './App';
 import axios from 'axios';
 
-axios.defaults.baseURL = 'http://localhost:4000';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 const token = localStorage.getItem('token');
 if (token) {
