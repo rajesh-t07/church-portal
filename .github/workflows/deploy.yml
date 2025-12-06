@@ -43,11 +43,25 @@ jobs:
           docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/backend:${{ github.sha }}
           docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/backend:latest
 
+      - name: Get backend URL
+        id: get-backend-url
+        run: |
+          BACKEND_URL=$(az containerapp show \
+            --name ${{ env.BACKEND_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "backend_url=https://$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "Backend URL: https://$BACKEND_URL"
+
       - name: Build and push frontend image
         run: |
           cd frontend
-          docker build -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }} .
-          docker build -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:latest .
+          docker build \
+            --build-arg REACT_APP_API_URL=${{ steps.get-backend-url.outputs.backend_url }} \
+            -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }} .
+          docker build \
+            --build-arg REACT_APP_API_URL=${{ steps.get-backend-url.outputs.backend_url }} \
+            -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:latest .
           docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }}
           docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:latest
 
@@ -68,17 +82,10 @@ jobs:
 
       - name: Deploy frontend to Container Apps
         run: |
-          BACKEND_URL=$(az containerapp show \
-            --name ${{ env.BACKEND_APP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query properties.configuration.ingress.fqdn -o tsv)
-          
           az containerapp update \
             --name ${{ env.FRONTEND_APP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }} \
-            --set-env-vars \
-              REACT_APP_API_URL=https://$BACKEND_URL
+            --image ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }}
 
       - name: Deployment Summary
         run: |
