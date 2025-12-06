@@ -1,0 +1,88 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  AZURE_RESOURCE_GROUP: rg-church-prod
+  BACKEND_APP_NAME: backend
+  FRONTEND_APP_NAME: frontend
+  CONTAINER_REGISTRY: # Will be set from secrets
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Container Registry name
+        id: get-registry
+        run: |
+          REGISTRY=$(az acr list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
+          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
+          echo "Container Registry: $REGISTRY"
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ steps.get-registry.outputs.registry }}
+
+      - name: Build and push backend image
+        run: |
+          cd backend
+          docker build -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/backend:${{ github.sha }} .
+          docker build -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/backend:latest .
+          docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/backend:${{ github.sha }}
+          docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          cd frontend
+          docker build -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }} .
+          docker build -t ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:latest .
+          docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }}
+          docker push ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:latest
+
+      - name: Deploy backend to Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ env.BACKEND_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ steps.get-registry.outputs.registry }}.azurecr.io/backend:${{ github.sha }} \
+            --set-env-vars \
+              DB_HOST=${{ secrets.DB_HOST }} \
+              DB_PORT=${{ secrets.DB_PORT }} \
+              DB_NAME=${{ secrets.DB_NAME }} \
+              DB_USER=${{ secrets.DB_USER }} \
+              DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              NODE_ENV=production
+
+      - name: Deploy frontend to Container Apps
+        run: |
+          BACKEND_URL=$(az containerapp show \
+            --name ${{ env.BACKEND_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          
+          az containerapp update \
+            --name ${{ env.FRONTEND_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ steps.get-registry.outputs.registry }}.azurecr.io/frontend:${{ github.sha }} \
+            --set-env-vars \
+              REACT_APP_API_URL=https://$BACKEND_URL
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo ""
+          echo "Backend URL: https://$(az containerapp show --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv)"
+          echo "Frontend URL: https://$(az containerapp show --name ${{ env.FRONTEND_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv)"
