@@ -66,8 +66,8 @@ app.use('/api/pastor-gifts', pastorGiftRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
+  res.status(200).json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'church-portal-backend',
     version: '1.0.0'
@@ -75,7 +75,7 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Atlanta Little Flock Church Portal Backend Running',
     version: '1.0.0',
     endpoints: {
@@ -99,7 +99,8 @@ const PORT = process.env.PORT || 4000;
 console.log('Initializing database...');
 sequelize.sync({ force: false }).then(() => {
   console.log('Database synchronized successfully');
-  
+  console.log('All tables created/verified');
+
   return createAdminUser();
 }).then(() => {
   app.listen(PORT, () => {
@@ -111,6 +112,10 @@ sequelize.sync({ force: false }).then(() => {
   });
 }).catch(error => {
   console.error('Failed to start server:', error);
+  console.error('Error details:', error.message);
+  if (error.parent && error.parent.errors) {
+    console.error('Underlying errors:', error.parent.errors);
+  }
   // Try to start server anyway
   app.listen(PORT, () => {
     console.log(`Backend running on port ${PORT} (with errors)`);

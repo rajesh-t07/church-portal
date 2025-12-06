@@ -9,14 +9,14 @@ exports.submitOffering = async (req, res) => {
     if (req.file) {
       depositSlipUrl = await uploadToBlob(req.file);
     }
-    const offering = await Offering.create({ 
-      date, 
-      checks: JSON.parse(checks), 
-      cash: JSON.parse(cash), 
-      total, 
+    const offering = await Offering.create({
+      date,
+      checks: JSON.parse(checks),
+      cash: JSON.parse(cash),
+      total,
       reviewer1,
       reviewer2,
-      depositSlipUrl 
+      depositSlipUrl
     });
     res.status(201).json(offering);
   } catch (error) {
@@ -65,14 +65,14 @@ exports.savePendingDeposit = async (req, res) => {
     // Parse weekData if it's a string
     const parsedWeekData = typeof weekData === 'string' ? JSON.parse(weekData) : weekData;
     const parsedTotals = typeof totals === 'string' ? JSON.parse(totals) : totals;
-    
+
     console.log('Parsed weekData:', parsedWeekData);
     console.log('Parsed totals:', parsedTotals);
-    
+
     if (!parsedWeekData) {
       return res.status(400).json({ error: 'Failed to parse weekData' });
     }
-    
+
     // Safely get pastorGift with fallback
     const pastorGift = parsedWeekData?.pastorGift || 0;
 
@@ -89,7 +89,7 @@ exports.savePendingDeposit = async (req, res) => {
       status: 'Offerings Entered - Pending Deposit', // Mark as pending
       cashTotal: parsedTotals.cashTotal,
       checksTotal: parsedTotals.checksTotal,
-      submittedBy: req.user?.email || 'system',
+      submittedBy: req.user?.id || null,
       submittedAt: new Date(),
       sessionId: sessionId || null, // Link to donation session
       reviewer1: reviewer1 || null,
@@ -103,10 +103,10 @@ exports.savePendingDeposit = async (req, res) => {
     });
   } catch (error) {
     console.error('Error saving pending deposit:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to save pending deposit', 
-      details: error.message 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save pending deposit',
+      details: error.message
     });
   }
 };
@@ -149,10 +149,10 @@ exports.finalizeDeposit = async (req, res) => {
 
   } catch (error) {
     console.error('Error finalizing deposit:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error finalizing deposit', 
-      error: error.message 
+      message: 'Error finalizing deposit',
+      error: error.message
     });
   }
 };
@@ -211,7 +211,7 @@ exports.updateDepositStatus = async (req, res) => {
 exports.generateOfferingSummaryPdf = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const offering = await Offering.findByPk(id);
     if (!offering) {
       return res.status(404).json({ message: 'Offering not found' });
@@ -223,7 +223,7 @@ exports.generateOfferingSummaryPdf = async (req, res) => {
       date: offering.date,
       cash: offering.cash ? (typeof offering.cash === 'string' ? JSON.parse(offering.cash) : offering.cash) : [],
       checks: offering.checks ? (typeof offering.checks === 'string' ? JSON.parse(offering.checks) : offering.checks) : [],
-      individualCashDonations: offering.individualCashDonations ? 
+      individualCashDonations: offering.individualCashDonations ?
         (typeof offering.individualCashDonations === 'string' ? JSON.parse(offering.individualCashDonations) : offering.individualCashDonations) : [],
       pastorGift: offering.pastorGift || 0,
       total: offering.total || 0,
@@ -237,21 +237,21 @@ exports.generateOfferingSummaryPdf = async (req, res) => {
 
     // Generate PDF
     const pdfBuffer = await pdfService.generateWeeklyOfferingSummary(offeringData);
-    
+
     // Set response headers for PDF download
     const offeringDate = new Date(offering.date).toISOString().split('T')[0];
     const filename = `Weekly_Offering_Summary_${offeringDate}.pdf`;
-    
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', pdfBuffer.length);
-    
+
     res.send(pdfBuffer);
   } catch (error) {
     console.error('Error generating offering summary PDF:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Error generating PDF',
-      error: error.message 
+      error: error.message
     });
   }
 };

@@ -42,7 +42,7 @@ A production-grade full-stack application for managing church finances, donation
 
 ### Backend
 - **Runtime**: Node.js 20 with Express.js
-- **Database**: SQLite (embedded, cost-effective for initial deployment)
+- **Database**: Azure SQL Server (production-grade relational database)
 - **Storage**: Azure Blob Storage for file uploads
 - **Security**: JWT, bcrypt, Helmet, express-rate-limit
 - **Email**: Nodemailer for notifications
@@ -104,8 +104,12 @@ A production-grade full-stack application for managing church finances, donation
 Create a `.env` file in the backend directory:
 
 ```env
-# Database (local development uses SQLite by default)
-# DATABASE_URL=your_database_connection_string
+# Azure SQL Server Database
+DB_HOST=churchfinancesql.database.windows.net
+DB_PORT=1433
+DB_NAME=ChurchFinanceDB
+DB_USER=sqladmin
+DB_PASSWORD=your_database_password
 
 # JWT Secret
 JWT_SECRET=your-super-secret-jwt-key
@@ -124,7 +128,7 @@ EMAIL_PASS=your-app-password
 
 # Application Settings
 NODE_ENV=development
-PORT=5000
+PORT=4000
 ```
 
 ## 🐳 Docker Development
@@ -196,14 +200,6 @@ npm test
 
 ## 📈 Production Considerations
 
-### Database Migration
-For production scale, consider migrating from SQLite to:
-- **Azure SQL Database**: For full SQL Server features
-- **PostgreSQL**: For open-source compatibility
-- **MySQL**: For cost-effective relational database
-
-Update `backend/src/utils/database.js` to switch database providers.
-
 ### Scaling
 - Container Apps automatically scale from 0-10 replicas based on demand
 - Storage scales automatically with usage
@@ -257,7 +253,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with Azure Container Apps for serverless deployment
 - Material-UI for beautiful React components
-- SQLite for cost-effective data storage
+- Azure SQL Server for reliable data persistence
 - Azure Blob Storage for reliable file management
 
 ---
