@@ -1,6 +1,7 @@
 const { Expense, ExpenseSubmission, User } = require('../models');
-const { uploadToBlob } = require('../services/blobStorageService');
+const { uploadToBlob, getSignedUrl } = require('../services/blobStorageService');
 const { sendEmail } = require('../services/emailService');
+const { Op } = require('sequelize');
 
 exports.submitExpense = async (req, res) => {
   console.log('=== EXPENSE SUBMISSION REQUEST ===');
@@ -12,14 +13,14 @@ exports.submitExpense = async (req, res) => {
   console.log('Request files:', req.files);
   console.log('Files count:', req.files?.length || 0);
   console.log('==================================');
-  
+
   try {
     const { expenses: expensesString } = req.body; // This will be a JSON string
     const userId = req.user.id;
-    
+
     console.log('Extracted expensesString:', expensesString);
     console.log('Type of expensesString:', typeof expensesString);
-    
+
     // Parse the JSON string
     let expenses;
     try {
@@ -28,7 +29,7 @@ exports.submitExpense = async (req, res) => {
       console.error('Failed to parse expenses JSON:', parseError);
       return res.status(400).json({ error: 'Invalid expenses data format' });
     }
-    
+
     if (!expenses || !Array.isArray(expenses)) {
       console.log('Expenses validation failed:', { expenses, isArray: Array.isArray(expenses) });
       return res.status(400).json({ error: 'Expenses array is required' });
@@ -49,18 +50,18 @@ exports.submitExpense = async (req, res) => {
     for (let i = 0; i < expenses.length; i++) {
       const expenseData = expenses[i];
       let receiptUrls = [];
-      
+
       // Handle file uploads for this expense
       const fieldName = `receipts_${i}`;
       if (req.files && req.files.length > 0) {
         // Filter files for this expense
         const expenseFiles = req.files.filter(file => file.fieldname === fieldName);
         for (const file of expenseFiles) {
-          const url = await uploadToBlob(file);
-          receiptUrls.push(url);
+          const result = await uploadToBlob(file);
+          receiptUrls.push(result.url);
         }
       }
-      
+
       const expense = await Expense.create({
         userId,
         submissionId: submission.id,
@@ -70,10 +71,19 @@ exports.submitExpense = async (req, res) => {
         receiptUrls,
         submissionDate: new Date()
       });
-      
+
       createdExpenses.push(expense);
     }
-    
+
+    // Generate signed URLs for response
+    for (const exp of createdExpenses) {
+      if (exp.receiptUrls && exp.receiptUrls.length > 0) {
+        exp.dataValues.receiptUrls = await Promise.all(
+          exp.receiptUrls.map(url => getSignedUrl(url))
+        );
+      }
+    }
+
     res.status(201).json({
       submission,
       expenses: createdExpenses,
@@ -89,14 +99,15 @@ exports.approveSubmission = async (req, res) => {
   try {
     const { submissionId } = req.body;
     let reimbursementReceiptUrl = null;
-    
+
     if (req.file) {
-      reimbursementReceiptUrl = await uploadToBlob(req.file);
+      const result = await uploadToBlob(req.file);
+      reimbursementReceiptUrl = result.url;
     }
-    
+
     // Update submission
     await ExpenseSubmission.update(
-      { 
+      {
         status: 'approved',
         approvedBy: req.user.id,
         approvedDate: new Date(),
@@ -107,7 +118,7 @@ exports.approveSubmission = async (req, res) => {
 
     // Update all related expenses
     await Expense.update(
-      { 
+      {
         status: 'approved',
         approvedBy: req.user.id,
         approvedDate: new Date(),
@@ -115,7 +126,7 @@ exports.approveSubmission = async (req, res) => {
       },
       { where: { submissionId } }
     );
-    
+
     res.json({ message: 'Expense submission approved successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -125,10 +136,10 @@ exports.approveSubmission = async (req, res) => {
 exports.rejectSubmission = async (req, res) => {
   try {
     const { submissionId, reason } = req.body;
-    
+
     // Update submission
     await ExpenseSubmission.update(
-      { 
+      {
         status: 'rejected',
         approvedBy: req.user.id,
         approvedDate: new Date(),
@@ -139,7 +150,7 @@ exports.rejectSubmission = async (req, res) => {
 
     // Update all related expenses
     await Expense.update(
-      { 
+      {
         status: 'rejected',
         approvedBy: req.user.id,
         approvedDate: new Date(),
@@ -147,7 +158,7 @@ exports.rejectSubmission = async (req, res) => {
       },
       { where: { submissionId } }
     );
-    
+
     res.json({ message: 'Expense submission rejected' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -159,13 +170,14 @@ exports.approveExpense = async (req, res) => {
   try {
     const { expenseId, status } = req.body;
     let reimbursementReceiptUrl = null;
-    
+
     if (req.file) {
-      reimbursementReceiptUrl = await uploadToBlob(req.file);
+      const result = await uploadToBlob(req.file);
+      reimbursementReceiptUrl = result.url;
     }
-    
+
     await Expense.update(
-      { 
+      {
         status: 'approved',
         approvedBy: req.user.id,
         approvedDate: new Date(),
@@ -173,7 +185,7 @@ exports.approveExpense = async (req, res) => {
       },
       { where: { id: expenseId } }
     );
-    
+
     res.json({ message: 'Expense approved successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -183,9 +195,9 @@ exports.approveExpense = async (req, res) => {
 exports.rejectExpense = async (req, res) => {
   try {
     const { expenseId, reason } = req.body;
-    
+
     await Expense.update(
-      { 
+      {
         status: 'rejected',
         approvedBy: req.user.id,
         approvedDate: new Date(),
@@ -193,7 +205,7 @@ exports.rejectExpense = async (req, res) => {
       },
       { where: { id: expenseId } }
     );
-    
+
     res.json({ message: 'Expense rejected' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -205,6 +217,30 @@ exports.getSubmissions = async (req, res) => {
     let where = {};
     if (req.user.role !== 'admin' && req.user.role !== 'treasurer') {
       where.userId = req.user.id;
+    }
+
+    // Server-side Filtering
+    const { status, userId, year } = req.query;
+
+    // Filter by User (only for admins/treasurers who haven't been restricted by above check)
+    if (userId && userId !== 'all') {
+      if (req.user.role === 'admin' || req.user.role === 'treasurer') {
+        where.userId = userId;
+      }
+    }
+
+    // Filter by Status
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    // Filter by Year
+    if (year && year !== 'all') {
+      const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
+      const endDate = new Date(`${year}-12-31T23:59:59.999Z`);
+      where.submissionDate = {
+        [Op.between]: [startDate, endDate]
+      };
     }
 
     const submissions = await ExpenseSubmission.findAll({
@@ -229,6 +265,37 @@ exports.getSubmissions = async (req, res) => {
       order: [['submissionDate', 'DESC']]
     });
 
+    // Sign URLs
+    for (const submission of submissions) {
+      if (submission.reimbursementReceiptUrl) {
+        submission.dataValues.reimbursementReceiptUrl = await getSignedUrl(submission.reimbursementReceiptUrl);
+      }
+      if (submission.Expenses) {
+        for (const expense of submission.Expenses) {
+          if (expense.receiptUrls && Array.isArray(expense.receiptUrls)) {
+            expense.dataValues.receiptUrls = await Promise.all(
+              expense.receiptUrls.map(url => getSignedUrl(url))
+            );
+          } else if (typeof expense.receiptUrls === 'string') {
+            // Handle case where it might be a JSON string as seen in verification
+            try {
+              const parsed = JSON.parse(expense.receiptUrls);
+              if (Array.isArray(parsed)) {
+                const signed = await Promise.all(parsed.map(url => getSignedUrl(url)));
+                expense.dataValues.receiptUrls = signed;
+              }
+            } catch (e) {
+              // If basic string URL
+              expense.dataValues.receiptUrls = [await getSignedUrl(expense.receiptUrls)];
+            }
+          }
+          if (expense.reimbursementReceiptUrl) {
+            expense.dataValues.reimbursementReceiptUrl = await getSignedUrl(expense.reimbursementReceiptUrl);
+          }
+        }
+      }
+    }
+
     res.json(submissions);
   } catch (error) {
     console.error('Error fetching submissions:', error);
@@ -246,6 +313,29 @@ exports.getExpenses = async (req, res) => {
       include = [{ model: User }];
     }
     const expenses = await Expense.findAll({ where, include });
+
+    // Sign URLs
+    for (const expense of expenses) {
+      if (expense.receiptUrls && Array.isArray(expense.receiptUrls)) {
+        expense.dataValues.receiptUrls = await Promise.all(
+          expense.receiptUrls.map(url => getSignedUrl(url))
+        );
+      } else if (typeof expense.receiptUrls === 'string') {
+        try {
+          const parsed = JSON.parse(expense.receiptUrls);
+          if (Array.isArray(parsed)) {
+            const signed = await Promise.all(parsed.map(url => getSignedUrl(url)));
+            expense.dataValues.receiptUrls = signed;
+          }
+        } catch (e) {
+          expense.dataValues.receiptUrls = [await getSignedUrl(expense.receiptUrls)];
+        }
+      }
+      if (expense.reimbursementReceiptUrl) {
+        expense.dataValues.reimbursementReceiptUrl = await getSignedUrl(expense.reimbursementReceiptUrl);
+      }
+    }
+
     res.json(expenses);
   } catch (error) {
     res.status(500).json({ error: error.message });
