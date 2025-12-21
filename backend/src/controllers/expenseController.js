@@ -77,10 +77,23 @@ exports.submitExpense = async (req, res) => {
 
     // Generate signed URLs for response
     for (const exp of createdExpenses) {
-      if (exp.receiptUrls && exp.receiptUrls.length > 0) {
+      // Ensure receiptUrls is an array
+      if (typeof exp.receiptUrls === 'string') {
+        try {
+          exp.receiptUrls = JSON.parse(exp.receiptUrls);
+        } catch (e) {
+          console.error('Error parsing receiptUrls:', e);
+          exp.receiptUrls = [];
+        }
+      }
+
+      if (exp.receiptUrls && Array.isArray(exp.receiptUrls) && exp.receiptUrls.length > 0) {
         exp.dataValues.receiptUrls = await Promise.all(
           exp.receiptUrls.map(url => getSignedUrl(url))
         );
+      } else {
+        // Ensure it's always an array in the response
+        exp.dataValues.receiptUrls = [];
       }
     }
 
