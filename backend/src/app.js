@@ -92,32 +92,41 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
-// Start server and sync database
-const PORT = process.env.PORT || 4000;
+const startServer = async () => {
+  try {
+    console.log('Initializing database...');
+    await sequelize.sync({ force: false });
+    console.log('Database synchronized successfully');
+    console.log('All tables created/verified');
 
-// Initialize database
-console.log('Initializing database...');
-sequelize.sync({ force: false }).then(() => {
-  console.log('Database synchronized successfully');
-  console.log('All tables created/verified');
+    await createAdminUser();
 
-  return createAdminUser();
-}).then(() => {
-  app.listen(PORT, () => {
-    console.log(`Backend running on port ${PORT}`);
-    console.log('=== ATLANTA LITTLE FLOCK CHURCH ADMIN CREDENTIALS ===');
-    console.log('Email: admin@church.org');
-    console.log('Password: ChurchAdmin2025!');
-    console.log('======================================');
-  });
-}).catch(error => {
-  console.error('Failed to start server:', error);
-  console.error('Error details:', error.message);
-  if (error.parent && error.parent.errors) {
-    console.error('Underlying errors:', error.parent.errors);
+    if (process.env.NODE_ENV !== 'test') {
+      app.listen(PORT, () => {
+        console.log(`Backend running on port ${PORT}`);
+        console.log('=== ATLANTA LITTLE FLOCK CHURCH ADMIN CREDENTIALS ===');
+        console.log('Email: admin@church.org');
+        console.log('Password: ChurchAdmin2025!');
+        console.log('======================================');
+      });
+    }
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    console.error('Error details:', error.message);
+    if (error.parent && error.parent.errors) {
+      console.error('Underlying errors:', error.parent.errors);
+    }
+    // Try to start server anyway
+    if (process.env.NODE_ENV !== 'test') {
+      app.listen(PORT, () => {
+        console.log(`Backend running on port ${PORT} (with errors)`);
+      });
+    }
   }
-  // Try to start server anyway
-  app.listen(PORT, () => {
-    console.log(`Backend running on port ${PORT} (with errors)`);
-  });
-});
+};
+
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+module.exports = app;
