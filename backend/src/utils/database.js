@@ -45,6 +45,8 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
     try {
       await sequelize.authenticate();
       console.log('✓ Successfully connected to Azure SQL Server');
+      console.log('  > Host:', sequelize.config.host);
+      console.log('  > Database:', sequelize.config.database);
       return;
     } catch (err) {
       console.error(`✗ Start failure (attempt ${i + 1}/${retries}):`, err.message);
